@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secret Santa</title>
+  <style>
+    :root {
+      --bg: #f6f2ea;
+      --surface: #fffdf9;
+      --surface-alt: #efe9dd;
+      --border: #ddd4c4;
+      --text: #232a24;
+      --muted: #61695f;
+      --olive: #4f6851;
+      --olive-dark: #3c513e;
+      --olive-light: #e6ece4;
+      --gold: #d49b35;
+      --gold-light: #f9eed7;
+      --rose-bg: #f6e5e3;
+      --rose-text: #8a342c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 28px 16px 64px;
+      line-height: 1.45;
+    }
+
+    h1 { margin: 0 0 6px; font-size: 30px; }
+    .sub { color: var(--muted); margin: 0 0 20px; font-size: 15px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card h2, .card h3 { margin: 0 0 12px; font-size: 17px; }
+
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+
+    input, select, textarea {
+      width: 100%;
+      font: inherit;
+      font-size: 14px;
+      padding: 9px 11px;
+      border: 1px solid #cfc5b4;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    textarea { min-height: 76px; resize: vertical; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 540px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .row .grow { flex: 1; }
+
+    button, a.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: var(--olive);
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button:hover, a.btn:hover { background: var(--olive-dark); }
+    button.secondary, a.btn.secondary {
+      background: var(--surface-alt);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    button.secondary:hover, a.btn.secondary:hover { background: #e5dec9; }
+    button.gold, a.btn.gold { background: var(--gold); color: #fff; }
+    button.gold:hover, a.btn.gold:hover { background: #be8829; }
+    button.primary-full { width: 100%; padding: 13px; font-size: 16px; }
+
+    .link-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      margin-bottom: 8px;
+    }
+
+    .link-row.copied { border-color: var(--olive); background: var(--olive-light); }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .seal-box {
+      text-align: center;
+      padding: 28px 18px;
+      border-radius: 12px;
+      margin: 18px 0;
+    }
+
+    .seal-box.sealed {
+      background: var(--gold-light);
+      border: 2px dashed var(--gold);
+      cursor: pointer;
+    }
+
+    .seal-box.open {
+      background: var(--olive-light);
+      border: 2px solid var(--olive);
+    }
+
+    .match-name { font-size: 32px; font-weight: 800; color: var(--olive-dark); margin: 6px 0; }
+
+    .err {
+      background: var(--rose-bg);
+      color: var(--rose-text);
+      border: 1px solid #e2b3ae;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+
+    .notice {
+      background: var(--gold-light);
+      border: 1px solid #e9ce96;
+      color: #6b4d16;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      margin-bottom: 14px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1 id="title">🎁 Secret Santa</h1>
+  <p class="sub" id="subtitle">Create private reveal links to text or send to each person.</p>
+
+  <!-- REVEAL VIEW -->
+  <div id="reveal-view" class="card hidden" style="text-align:center; border-width:2px; border-color:var(--olive);">
+    <div class="muted" style="font-weight:700; letter-spacing:0.06em;">PRIVATE DRAW FOR</div>
+    <h2 id="rev-giver" style="font-size:24px; margin:4px 0 0;"></h2>
+
+    <div id="rev-sealed" class="seal-box sealed" onclick="unseal()">
+      <div style="font-size:28px; margin-bottom:6px;">✉️</div>
+      <div><strong>Tap to Unseal Your Match</strong></div>
+      <div class="muted">Make sure nobody is looking over your shoulder</div>
+    </div>
+
+    <div id="rev-open" class="seal-box open hidden">
+      <div class="muted">You are buying a gift for</div>
+      <div id="rev-recipient" class="match-name"></div>
+    </div>
+
+    <div id="rev-meta" class="muted" style="margin-bottom:10px;"></div>
+    <div id="rev-notes" class="card hidden" style="text-align:left; background:var(--surface-alt); white-space:pre-wrap; margin:12px auto; max-width:440px;"></div>
+
+    <button type="button" class="secondary" onclick="goHome()">Create Your Own Draw</button>
+  </div>
+
+  <!-- ORGANIZER VIEW -->
+  <div id="organizer-view">
+    <div id="err" class="err hidden"></div>
+
+    <div class="card">
+      <h3>1. Event Details</h3>
+      <div class="grid-2" style="margin-bottom:10px;">
+        <div>
+          <label for="ev-name">Event Name</label>
+          <input id="ev-name" value="Secret Santa" />
+        </div>
+        <div>
+          <label for="ev-budget">Budget (Optional)</label>
+          <input id="ev-budget" placeholder="e.g. $50" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label for="ev-date">Date (Optional)</label>
+          <input id="ev-date" placeholder="e.g. Dec 20" />
+        </div>
+        <div>
+          <label for="ev-notes">Notes / Rules (Optional)</label>
+          <input id="ev-notes" placeholder="e.g. Wishlist link in calendar invite" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;">2. Participants (3+ required)</h3>
+        <button type="button" class="secondary" onclick="toggleBulk()">Bulk Paste</button>
+      </div>
+      <div id="people"></div>
+      <button type="button" class="secondary" onclick="addPerson()">+ Add Person</button>
+
+      <div id="bulk-box" class="hidden" style="margin-top:12px; padding-top:12px; border-top:1px dashed var(--border);">
+        <label for="bulk-text">One per line (<code>Name</code> or <code>Name, email@example.com</code>)</label>
+        <textarea id="bulk-text" placeholder="Alex, alex@example.com&#10;Jordan&#10;Sam"></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button type="button" class="secondary" onclick="importBulk()">Import</button>
+          <button type="button" class="secondary" onclick="toggleBulk()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;">3. Exclusions (Optional)</h3>
+        <button type="button" class="secondary" onclick="addEx()">+ Add Exclusion</button>
+      </div>
+      <div id="exclusions"></div>
+    </div>
+
+    <button type="button" class="primary-full" onclick="generate()">Generate Secret Links</button>
+
+    <div id="results" class="card hidden" style="margin-top:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;">4. Private Links</h3>
+        <button type="button" class="secondary" onclick="generate()">Reshuffle</button>
+      </div>
+      <div class="notice">Each link contains only that person's match. Send each person their own link.</div>
+      <div id="links-list"></div>
+    </div>
+  </div>
+
+  <script>
+    let people = [
+      { id: 1, name: '', email: '' },
+      { id: 2, name: '', email: '' },
+      { id: 3, name: '', email: '' }
+    ];
+    let exclusions = [];
+    let nextId = 4;
+
+    function encodeToken(obj) {
+      const bytes = new TextEncoder().encode(JSON.stringify(obj));
+      let bin = '';
+      bytes.forEach(b => bin += String.fromCharCode(b));
+      return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function decodeToken(str) {
+      let b64 = String(str).trim().replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    }
+
+    function getBaseUrl() {
+      return window.location.href.split('?')[0].split('#')[0];
+    }
+
+    function getHashToken() {
+      const h = window.location.hash || '';
+      if (h.startsWith('#t=')) return h.slice(3).split('&')[0];
+      const p = new URLSearchParams(h.replace(/^#/, ''));
+      return p.get('t') || '';
+    }
+
+    function init() {
+      const token = getHashToken();
+      if (token) {
+        try {
+          const data = decodeToken(token);
+          if (data && data.g && data.r) {
+            showReveal(data);
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      renderPeople();
+      renderEx();
+    }
+
+    window.addEventListener('hashchange', init);
+
+    function showReveal(data) {
+      document.getElementById('organizer-view').classList.add('hidden');
+      document.getElementById('reveal-view').classList.remove('hidden');
+      document.getElementById('title').textContent = data.ev || 'Secret Santa';
+      document.getElementById('subtitle').textContent = 'Your private Secret Santa draw';
+      document.getElementById('rev-giver').textContent = data.g;
+      document.getElementById('rev-recipient').textContent = data.r;
+
+      const bits = [];
+      if (data.b) bits.push('Budget: ' + data.b);
+      if (data.d) bits.push('Date: ' + data.d);
+      document.getElementById('rev-meta').textContent = bits.join(' · ');
+
+      if (data.n) {
+        const notesEl = document.getElementById('rev-notes');
+        notesEl.textContent = data.n;
+        notesEl.classList.remove('hidden');
+      }
+    }
+
+    function unseal() {
+      document.getElementById('rev-sealed').classList.add('hidden');
+      document.getElementById('rev-open').classList.remove('hidden');
+    }
+
+    function goHome() {
+      window.location.href = getBaseUrl();
+    }
+
+    function renderPeople() {
+      const el = document.getElementById('people');
+      el.innerHTML = '';
+      people.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `
+          <input class="grow" placeholder="Name #${idx + 1}" value="${esc(p.name)}" />
+          <input class="grow" type="email" placeholder="Email (optional)" value="${esc(p.email)}" />
+          ${people.length > 3 ? `<button type="button" class="secondary" onclick="remPerson(${p.id})">✕</button>` : ''}
+        `;
+        const [nameIn, emailIn] = row.querySelectorAll('input');
+        nameIn.oninput = e => { p.name = e.target.value; renderEx(); };
+        emailIn.oninput = e => { p.email = e.target.value; };
+        el.appendChild(row);
+      });
+    }
+
+    function addPerson() {
+      people.push({ id: nextId++, name: '', email: '' });
+      renderPeople();
+      renderEx();
+    }
+
+    function remPerson(id) {
+      if (people.length <= 3) return;
+      people = people.filter(p => p.id !== id);
+      exclusions = exclusions.filter(ex => ex.a !== id && ex.b !== id);
+      renderPeople();
+      renderEx();
+    }
+
+    function toggleBulk() {
+      document.getElementById('bulk-box').classList.toggle('hidden');
+    }
+
+    function importBulk() {
+      const raw = document.getElementById('bulk-text').value.trim();
+      if (!raw) return;
+      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const parsed = lines.map(line => {
+        const parts = line.split(/[,|\t—-]+/).map(s => s.trim());
+        if (parts.length >= 2 && parts[parts.length - 1].includes('@')) {
+          const email = parts.pop();
+          return { id: nextId++, name: parts.join(' '), email };
+        }
+        return { id: nextId++, name: line, email: '' };
+      });
+      const onlyEmpty = people.every(p => !p.name.trim() && !p.email.trim());
+      people = onlyEmpty ? parsed : people.concat(parsed);
+      while (people.length < 3) people.push({ id: nextId++, name: '', email: '' });
+      document.getElementById('bulk-text').value = '';
+      toggleBulk();
+      renderPeople();
+      renderEx();
+    }
+
+    function addEx() {
+      const valid = people.filter(p => p.name.trim());
+      if (valid.length < 2) return showErr('Enter at least 2 names first.');
+      hideErr();
+      exclusions.push({ id: nextId++, a: valid[0].id, b: valid[1].id });
+      renderEx();
+    }
+
+    function remEx(id) {
+      exclusions = exclusions.filter(ex => ex.id !== id);
+      renderEx();
+    }
+
+    function renderEx() {
+      const el = document.getElementById('exclusions');
+      el.innerHTML = '';
+      const valid = people.filter(p => p.name.trim());
+      exclusions.forEach(ex => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const opts = id => valid.map(p => `<option value="${p.id}" ${p.id === id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+        row.innerHTML = `
+          <select class="grow">${opts(ex.a)}</select>
+          <span class="muted">cannot draw</span>
+          <select class="grow">${opts(ex.b)}</select>
+          <button type="button" class="secondary" onclick="remEx(${ex.id})">✕</button>
+        `;
+        const [s1, s2] = row.querySelectorAll('select');
+        s1.onchange = e => ex.a = Number(e.target.value);
+        s2.onchange = e => ex.b = Number(e.target.value);
+        el.appendChild(row);
+      });
+    }
+
+    function solve(list, rules) {
+      const blocked = new Map(list.map(p => [p.id, new Set([p.id])]));
+      rules.forEach(r => {
+        blocked.get(r.a)?.add(r.b);
+        blocked.get(r.b)?.add(r.a);
+      });
+      const givers = [...list].sort((a, b) => blocked.get(b.id).size - blocked.get(a.id).size);
+      const used = new Set();
+      const out = new Map();
+
+      function bt(i) {
+        if (i === givers.length) return true;
+        const g = givers[i];
+        const cands = list.filter(p => !used.has(p.id) && !blocked.get(g.id).has(p.id));
+        for (let k = cands.length - 1; k > 0; k--) {
+          const j = Math.floor(Math.random() * (k + 1));
+          [cands[k], cands[j]] = [cands[j], cands[k]];
+        }
+        for (const c of cands) {
+          used.add(c.id);
+          out.set(g.id, c);
+          if (bt(i + 1)) return true;
+          used.delete(c.id);
+          out.delete(g.id);
+        }
+        return false;
+      }
+
+      return bt(0) ? out : null;
+    }
+
+    function generate() {
+      hideErr();
+      const valid = people.map(p => ({ ...p, name: p.name.trim(), email: p.email.trim() })).filter(p => p.name);
+      if (valid.length < 3) return showErr('Enter at least 3 participants.');
+      const lower = valid.map(p => p.name.toLowerCase());
+      if (new Set(lower).size !== lower.length) return showErr('Each participant needs a unique name.');
+
+      const map = solve(valid, exclusions);
+      if (!map) return showErr('No valid draw matches those exclusions. Remove a restriction and try again.');
+
+      const ev = document.getElementById('ev-name').value.trim() || 'Secret Santa';
+      const b = document.getElementById('ev-budget').value.trim();
+      const d = document.getElementById('ev-date').value.trim();
+      const n = document.getElementById('ev-notes').value.trim();
+      const base = getBaseUrl();
+
+      const listEl = document.getElementById('links-list');
+      listEl.innerHTML = '';
+
+      valid.forEach((giver, i) => {
+        const rec = map.get(giver.id);
+        const token = encodeToken({ ev, g: giver.name, r: rec.name, b, d, n });
+        const url = `${base}#t=${token}`;
+
+        const row = document.createElement('div');
+        row.className = 'link-row';
+        row.id = `row-${i}`;
+
+        const subj = encodeURIComponent(`Your ${ev} Link`);
+        const body = encodeURIComponent(`Hi ${giver.name},\n\nHere is your private Secret Santa link:\n${url}`);
+        const mailBtn = giver.email
+          ? `<a class="btn gold" href="mailto:${encodeURIComponent(giver.email)}?subject=${subj}&body=${body}" onclick="markCopied(${i})">Email</a>`
+          : '';
+
+        row.innerHTML = `
+          <div>
+            <strong>${esc(giver.name)}</strong>
+            <div class="muted">${giver.email ? esc(giver.email) : 'Private reveal link'}</div>
+          </div>
+          <div class="row" style="margin:0;">
+            <button type="button" class="secondary" id="cp-${i}" onclick="copyUrl(${i}, '${url.replace(/'/g, "\\'")}')">Copy Link</button>
+            ${mailBtn}
+          </div>
+        `;
+        listEl.appendChild(row);
+      });
+
+      document.getElementById('results').classList.remove('hidden');
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function copyUrl(i, url) {
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById(`cp-${i}`);
+        btn.textContent = 'Copied!';
+        markCopied(i);
+        setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+      });
+    }
+
+    function markCopied(i) {
+      document.getElementById(`row-${i}`)?.classList.add('copied');
+    }
+
+    function showErr(msg) {
+      const el = document.getElementById('err');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function hideErr() {
+      document.getElementById('err').classList.add('hidden');
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    init();
+  </script>
+</body>
+</html>
